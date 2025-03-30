@@ -1,0 +1,39 @@
+---
+- name: Déploiement VM Hyper-V depuis template
+  hosts: hyperv
+  gather_facts: false
+
+  vars:
+    vm_name: "vm-ansible01"
+    vm_path: "C:\\Hyper-V\\vm-ansible01"
+    vhdx_source: "C:\\Hyper-V\\Template_windsrv22\\Virtual Hard Disks\\Template_windsrv22.vhdx"
+    vhdx_target: "{{ vm_path }}\\disk.vhdx"
+
+  tasks:
+    # 1. Créer le dossier de la VM
+    - name: Créer dossier de la VM
+      win_file:
+        path: "{{ vm_path }}"
+        state: directory
+
+    # 2. Copier le disque VHDX depuis Hyper-V
+    - name: Copier le disque VHDX depuis Hyper-V
+      win_copy:
+        src: "{{ vhdx_source }}"
+        dest: "{{ vhdx_target }}"
+        remote_src: yes
+
+    # 3. Créer la machine virtuelle sur Hyper-V
+    - name: Créer la machine virtuelle
+      win_command: >
+        powershell.exe New-VM -Name "{{ vm_name }}" -MemoryStartupBytes 2GB -Generation 2 -Path "{{ vm_path }}" -VHDPath "{{ vhdx_target }}"
+
+    # 4. Connecter la machine virtuelle au switch virtuel
+    - name: Connecter la VM au switch virtuel
+      win_command: >
+        powershell.exe Connect-VMNetworkAdapter -VMName "{{ vm_name }}" -SwitchName "WAN"
+
+    # 5. Démarrer la machine virtuelle
+    - name: Démarrer la VM
+      win_command: >
+        powershell.exe Start-VM -Name "{{ vm_name }}"
